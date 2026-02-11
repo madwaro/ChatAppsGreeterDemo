@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
 import express from "express";
+import cors from "cors";
 import { z } from "zod";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
+app.use(cors()); // Enable CORS for ChatGPT
 app.use(express.json());
 
 // Schema for greeting
@@ -35,7 +37,7 @@ app.post("/greet", (req, res) => {
 // GET /.well-known/ai-plugin.json - Plugin manifest
 app.get("/.well-known/ai-plugin.json", (req, res) => {
   const host = req.get("host") || `localhost:${PORT}`;
-  const protocol = req.protocol;
+  const protocol = req.get("x-forwarded-proto") || req.protocol;
   
   res.json({
     schema_version: "v1",
