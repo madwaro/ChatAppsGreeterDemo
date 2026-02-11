@@ -11,9 +11,12 @@
     "appdemo-mcp": "./server/dist/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build:ui": "vite build",
+    "build:server": "tsc",
+    "build": "npm run build:ui && npm run build:server",
     "start": "node dist/server/index.js",
-    "dev": "tsx src/server/index.ts"
+    "dev": "tsx src/server/index.ts",
+    "dev:ui": "vite"
   },
   "files": [
     "server/dist"
@@ -25,12 +28,19 @@
     "@types/node": "^25.2.0",
     "eventsource-parser": "^3.0.6",
     "express": "^5.2.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
     "tsx": "^4.19.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-singlefile": "^2.3.0"
   }
 }

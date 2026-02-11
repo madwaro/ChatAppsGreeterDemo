@@ -1,13 +1,21 @@
 #!/usr/bin/env node
 
 import { createServer } from "node:http";
+import { readFileSync } from "node:fs";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
+import {
+  registerAppTool,
+  registerAppResource,
+  RESOURCE_MIME_TYPE,
+} from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 
 const port = Number(process.env.PORT ?? 3000);
 const MCP_PATH = "/mcp";
+
+// Load the bundled UI
+const greetingHtml = readFileSync("public/index.html", "utf8");
 
 // Schema for greeting
 const greetInputSchema = {
@@ -17,6 +25,24 @@ const greetInputSchema = {
 function createGreetingServer() {
   const server = new McpServer({ name: "chatappdemo", version: "1.0.0" });
 
+  // Register the UI resource
+  registerAppResource(
+    server,
+    "greeting-widget",
+    "ui://widget/greeting.html",
+    {},
+    async () => ({
+      contents: [
+        {
+          uri: "ui://widget/greeting.html",
+          mimeType: RESOURCE_MIME_TYPE,
+          text: greetingHtml,
+        },
+      ],
+    })
+  );
+
+  // Register the greet tool with UI
   registerAppTool(
     server,
     "greet",
@@ -24,7 +50,9 @@ function createGreetingServer() {
       title: "Greet Person",
       description: "Greets a person by name with a friendly message.",
       inputSchema: greetInputSchema,
-      _meta: {}, // Required for app tools, even if empty
+      _meta: {
+        ui: { resourceUri: "ui://widget/greeting.html" },
+      },
     },
     async (args) => {
       const name = args?.name?.trim?.() ?? "";
@@ -41,6 +69,10 @@ function createGreetingServer() {
             text: `Hello, ${name}! Welcome to the ChatAppDemo. 👋`,
           },
         ],
+        structuredContent: {
+          name,
+          timestamp: new Date().toISOString(),
+        },
       };
     }
   );
