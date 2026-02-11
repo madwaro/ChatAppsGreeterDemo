@@ -1,153 +1,122 @@
 #!/usr/bin/env node
 
-import express from "express";
-import cors from "cors";
+import { createServer } from "node:http";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-// Middleware
-app.use(cors());
-app.use(express.json());
+const port = Number(process.env.PORT ?? 3000);
+const MCP_PATH = "/mcp";
 
 // Schema for greeting
-const GreetingSchema = z.object({
-  name: z.string(),
-});
+const greetInputSchema = {
+  name: z.string().min(1).describe("The name of the person to greet"),
+};
 
-// ChatGPT Apps endpoint - Server-Sent Events
-app.get("/.well-known/ai-plugin.json", (req, res) => {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
+function createGreetingServer() {
+  const server = new McpServer({ name: "chatappdemo", version: "1.0.0" });
 
-  // Send app manifest as SSE
-  const manifest = {
-    schema_version: "v1",
-    name_for_human: "ChatAppDemo",
-    name_for_model: "chatappdemo",
-    description_for_human: "A simple greeting app that says hello.",
-    description_for_model: "Use this app to greet people by name with a friendly message.",
-    auth: {
-      type: "none",
+  registerAppTool(
+    server,
+    "greet",
+    {
+      title: "Greet Person",
+      description: "Greets a person by name with a friendly message.",
+      inputSchema: greetInputSchema,
+      _meta: {}, // Required for app tools, even if empty
     },
-    api: {
-      type: "openapi",
-      url: `${req.get("x-forwarded-proto") || req.protocol}://${req.get("host")}/openapi.json`,
-    },
-    logo_url: `${req.get("x-forwarded-proto") || req.protocol}://${req.get("host")}/logo.png`,
-    contact_email: "support@example.com",
-    legal_info_url: `${req.get("x-forwarded-proto") || req.protocol}://${req.get("host")}/legal`,
-  };
+    async (args) => {
+      const name = args?.name?.trim?.() ?? "";
+      if (!name) {
+        return {
+          content: [{ type: "text", text: "Please provide a name to greet." }],
+        };
+      }
 
-  res.write(`data: ${JSON.stringify(manifest)}\n\n`);
-  res.end();
-});
-
-// POST /greet - Main action endpoint
-app.post("/greet", (req, res) => {
-  try {
-    const { name } = GreetingSchema.parse(req.body);
-    
-    res.json({
-      message: `Hello, ${name}! Welcome to the ChatAppDemo. 👋`,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      res.status(400).json({ error: "Invalid input", details: error.issues });
-    } else {
-      res.status(500).json({ error: "Internal server error" });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Hello, ${name}! Welcome to the ChatAppDemo. 👋`,
+          },
+        ],
+      };
     }
+  );
+
+  return server;
+}
+
+const httpServer = createServer(async (req, res) => {
+  if (!req.url) {
+    res.writeHead(400).end("Missing URL");
+    return;
   }
+
+  const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
+
+  // Handle CORS preflight
+  if (req.method === "OPTIONS" && url.pathname === MCP_PATH) {
+    res.writeHead(204, {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, GET, OPTIONS, DELETE",
+      "Access-Control-Allow-Headers": "content-type, mcp-session-id",
+      "Access-Control-Expose-Headers": "Mcp-Session-Id",
+    });
+    res.end();
+    return;
+  }
+
+  // Health check
+  if (req.method === "GET" && url.pathname === "/") {
+    res
+      .writeHead(200, { "content-type": "text/plain" })
+      .end("ChatAppDemo MCP server");
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/health") {
+    res
+      .writeHead(200, { "content-type": "application/json" })
+      .end(JSON.stringify({ status: "ok" }));
+    return;
+  }
+
+  // Handle MCP requests
+  const MCP_METHODS = new Set(["POST", "GET", "DELETE"]);
+  if (url.pathname === MCP_PATH && req.method && MCP_METHODS.has(req.method)) {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
+
+    const server = createGreetingServer();
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // stateless mode
+      enableJsonResponse: true,
+    });
+
+    res.on("close", () => {
+      transport.close();
+      server.close();
+    });
+
+    try {
+      await server.connect(transport);
+      await transport.handleRequest(req, res);
+    } catch (error) {
+      console.error("Error handling MCP request:", error);
+      if (!res.headersSent) {
+        res.writeHead(500).end("Internal server error");
+      }
+    }
+    return;
+  }
+
+  res.writeHead(404).end("Not Found");
 });
 
-// GET /openapi.json - OpenAPI specification
-app.get("/openapi.json", (req, res) => {
-  const host = req.get("host") || `localhost:${PORT}`;
-  
-  res.json({
-    openapi: "3.0.0",
-    info: {
-      title: "ChatAppDemo API",
-      description: "A simple greeting API for ChatGPT",
-      version: "1.0.0",
-    },
-    servers: [
-      {
-        url: `${req.get("x-forwarded-proto") || req.protocol}://${host}`,
-      },
-    ],
-    paths: {
-      "/greet": {
-        post: {
-          operationId: "greetPerson",
-          summary: "Greet a person by name",
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  required: ["name"],
-                  properties: {
-                    name: {
-                      type: "string",
-                      description: "The name of the person to greet",
-                    },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            "200": {
-              description: "Successful greeting",
-              content: {
-                "application/json": {
-                  schema: {
-                    type: "object",
-                    properties: {
-                      message: {
-                        type: "string",
-                        description: "The greeting message",
-                      },
-                      timestamp: {
-                        type: "string",
-                        format: "date-time",
-                        description: "When the greeting was generated",
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-});
-
-// Health check
-app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
-});
-
-// Placeholder for logo
-app.get("/logo.png", (req, res) => {
-  res.status(404).send("Logo not implemented");
-});
-
-// Placeholder for legal
-app.get("/legal", (req, res) => {
-  res.send("Legal information not implemented");
-});
-
-// Start server
-app.listen(PORT, () => {
-  console.log(`ChatAppDemo HTTP server running on http://localhost:${PORT}`);
-  console.log(`App manifest: http://localhost:${PORT}/.well-known/ai-plugin.json`);
-  console.log(`OpenAPI spec: http://localhost:${PORT}/openapi.json`);
+httpServer.listen(port, () => {
+  console.log(`ChatAppDemo MCP server running on http://localhost:${port}`);
+  console.log(`MCP endpoint: http://localhost:${port}${MCP_PATH}`);
+  console.log(`Health check: http://localhost:${port}/health`);
 });

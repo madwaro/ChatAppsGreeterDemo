@@ -1,15 +1,13 @@
-# ChatAppDemo - ChatGPT App
+# ChatAppDemo - OpenAI Apps SDK
 
-A minimal HTTP-based **ChatGPT App** (the new @-mention system) demonstrating the basic structure.
+A minimal **OpenAI Apps SDK** server implementing the Model Context Protocol (MCP) over HTTP with Server-Sent Events.
 
 ## What It Does
 
-This server exposes a simple REST API endpoint:
-- **POST /greet** - Greets a person by name with a friendly message
+This MCP server exposes one tool:
+- **greet** - Greets a person by name with a friendly message
 
-It includes the required ChatGPT App endpoints:
-- `/.well-known/ai-plugin.json` - App manifest (Server-Sent Events format)
-- `/openapi.json` - OpenAPI specification
+The server implements the MCP protocol over HTTP at the `/mcp` endpoint, allowing ChatGPT to discover and call tools.
 
 ## Installation
 
@@ -32,106 +30,95 @@ npm start
 
 The server will run on `http://localhost:3000` by default. Set the `PORT` environment variable to use a different port.
 
-## Testing with ngrok
+## Testing Locally
 
-See [NGROK_TESTING.md](./NGROK_TESTING.md) for detailed instructions.
+### With MCP Inspector
+The easiest way to test your MCP server:
 
-Quick start:
+```bash
+npx @modelcontextprotocol/inspector@latest --server-url http://localhost:3000/mcp --transport http
+```
+
+This opens a browser interface where you can test the `greet` tool.
+
+### Manual Test
+```bash
+# Health check
+curl http://localhost:3000/health
+```
+
+## Deploying with ngrok
+
+For ChatGPT to access your server during development:
+
 ```bash
 # Terminal 1: Start the server
 npm start
 
-# Terminal 2: Start ngrok
-ngrok http 3000 --domain=your-domain.ngrok-free.dev
+# Terminal 2: Start ngrok with your domain
+ngrok http 3000 --domain=unflanged-lashaunda-separately.ngrok-free.dev
 ```
 
 ## Adding to ChatGPT
 
-1. Go to ChatGPT (chat.openai.com)
-2. Click on your profile → Settings → Apps
-3. Click "Add App" or "Connect App"
-4. Enter your ngrok URL: `https://your-domain.ngrok-free.dev/.well-known/ai-plugin.json`
-5. ChatGPT will fetch the manifest and install your app
+1. Enable **developer mode** in ChatGPT:
+   - Go to **Settings → Apps & Connectors → Advanced settings**
+   - Enable "Developer mode"
 
-You can then use the app by typing `@ChatAppDemo` in your chat!
+2. Add a connector:
+   - Go to **Settings → Connectors**
+   - Click **Create**
+   - Enter your URL: `https://unflanged-lashaunda-separately.ngrok-free.dev/mcp`
+   - Name it "ChatAppDemo" and click **Create**
 
-## Testing the API
-
-### Test the greeting endpoint
-```bash
-curl -X POST https://your-domain.ngrok-free.dev/greet \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Alice"}'
-```
-
-**Response:**
-```json
-{
-  "message": "Hello, Alice! Welcome to the ChatAppDemo. 👋",
-  "timestamp": "2024-02-11T00:00:00.000Z"
-}
-```
-
-### View the app manifest (SSE format)
-```bash
-curl https://your-domain.ngrok-free.dev/.well-known/ai-plugin.json
-```
-
-### View the OpenAPI specification
-```bash
-curl https://your-domain.ngrok-free.dev/openapi.json
-```
+3. Use in a chat:
+   - Open a new chat
+   - Click **+** → **More** → Select your connector
+   - Ask ChatGPT to greet someone (e.g., "Greet Alice")
 
 ## Project Structure
 
-- **src/server/index.ts** - Main HTTP server with Express
+- **src/server/index.ts** - MCP server implementation
 - **dist/server/index.js** - Compiled JavaScript (after build)
 
-## API Endpoints
+## How It Works
 
-### GET /.well-known/ai-plugin.json
-Returns the app manifest using Server-Sent Events (SSE) format.
+This server implements the MCP protocol:
 
-**Response Headers:**
-- `Content-Type: text/event-stream`
+1. **MCP Endpoint** (`/mcp`) - Handles POST, GET, DELETE requests from ChatGPT
+2. **Server-Sent Events** - Streams responses back to the client
+3. **Tool Registration** - Uses `registerAppTool` to define the `greet` tool
+4. **Stateless Mode** - Each request creates a fresh server instance
 
-### POST /greet
-Greets a person by name.
+## Tools Available
 
-**Request:**
+### greet
+Greets a person by name with a friendly message.
+
+**Input:**
 ```json
 {
-  "name": "string"
+  "name": "string (required)"
 }
 ```
 
-**Response:**
-```json
-{
-  "message": "string",
-  "timestamp": "ISO 8601 date-time"
-}
+**Output:**
 ```
-
-### GET /openapi.json
-Returns the OpenAPI 3.0 specification for the API.
-
-### GET /health
-Health check endpoint.
-
-**Response:**
-```json
-{
-  "status": "ok"
-}
+Hello, {name}! Welcome to the ChatAppDemo. 👋
 ```
 
 ## Architecture
 
-This is a ChatGPT App built with:
-- **Express.js** - Web framework
-- **Server-Sent Events** - For app manifest delivery
+Built with the official MCP SDK:
+- **@modelcontextprotocol/sdk** - Core MCP protocol implementation
+- **@modelcontextprotocol/ext-apps** - Apps SDK helpers for tool registration
+- **StreamableHTTPServerTransport** - HTTP/SSE transport layer
 - **Zod** - Input validation
 - **TypeScript** - Type-safe development
-- **CORS** - Enabled for ChatGPT access
+
+## Learn More
+
+- [OpenAI Apps SDK Documentation](https://developers.openai.com/apps-sdk)
+- [MCP Protocol Specification](https://modelcontextprotocol.io)
+- [Apps SDK Examples](https://github.com/openai/openai-apps-sdk-examples)
 
