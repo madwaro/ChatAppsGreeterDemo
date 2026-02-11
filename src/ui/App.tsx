@@ -3,6 +3,7 @@ import "./App.css";
 
 interface GreetingData {
   name?: string;
+  greeting?: string;
   timestamp?: string;
 }
 
@@ -90,7 +91,7 @@ function App() {
     };
   }, []);
 
-  const displayName = greetingData.name || "Friend";
+  const displayGreeting = greetingData.greeting || "Welcome to ChatAppDemo! 👋";
   const emoji = "👋";
 
   return (
@@ -98,8 +99,7 @@ function App() {
       <div className="gradient-bg"></div>
       <div className="content">
         <div className="emoji">{emoji}</div>
-        <h1 className="greeting">Hello, {displayName}!</h1>
-        <p className="message">Welcome to ChatAppDemo</p>
+        <h1 className="greeting">{displayGreeting}</h1>
         {!isInitialized && <p className="status">Initializing...</p>}
       </div>
     </div>

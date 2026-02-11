@@ -22,6 +22,58 @@ const greetInputSchema = {
   name: z.string().min(1).describe("The name of the person to greet"),
 };
 
+// Multilingual greeting templates
+const GREETINGS = [
+  // English - Casual/Friendly
+  "Hey {name}, great to see you! 👋",
+  "What's up, {name}? Welcome aboard! 🚀",
+  "Yo {name}! Let's get this party started! 🎉",
+  "Howdy {name}! Ready for an awesome day? 🌟",
+  "Hi there {name}! So glad you're here! 💫",
+  
+  // English - Funny/Playful
+  "Well well well, look who it is... {name}! 😎",
+  "Alert! {name} has entered the chat! 🚨",
+  "{name}! You absolute legend! 🏆",
+  "Greetings earthling {name}! 👽",
+  "Beep boop! {name} detected! 🤖",
+  
+  // Spanish
+  "¡Hola {name}! ¡Qué alegría verte! 🎊",
+  "¡Saludos {name}! ¡Bienvenido! 🌺",
+  "¡Ey {name}! ¡Vamos a pasarla genial! 🎈",
+  "¡Buenos días {name}! ¿Qué tal? ☀️",
+  "¡Qué onda {name}! ¡Listo para la aventura! 🌮",
+  "¡Hola compadre {name}! ¡A darle! 💪",
+  
+  // Portuguese
+  "Oi {name}! Que bom te ver! 🌻",
+  "E aí {name}? Bem-vindo! 🎵",
+  "Olá {name}! Vamos nessa! 💫",
+  "Epa {name}! Tudo bem? 🌴",
+  "Opa {name}! Bora lá! 🎸",
+  "Salve {name}! Partiu! 🏖️",
+  
+  // Mandarin (Chinese Characters)
+  "你好 {name}！很高兴见到你！🎋",
+  "嘿 {name}！欢迎欢迎！🏮",
+  "嗨 {name}！一起加油吧！✨",
+  "{name} 你来啦！太好了！🎊",
+  "哈喽 {name}！准备好了吗？🚀",
+  
+  // Mandarin (Pinyin)
+  "Nǐ hǎo {name}! Hěn gāoxìng jiàn dào nǐ! 🎋",
+  "Hēi {name}! Huānyíng huānyíng! 🏮",
+  "Hāi {name}! Yīqǐ jiāyóu ba! ✨",
+  "{name} nǐ lái la! Tài hǎo le! 🎊",
+  "Hā lóu {name}! Zhǔnbèi hǎo le ma? 🚀",
+];
+
+function getRandomGreeting(name: string): string {
+  const template = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+  return template.replace("{name}", name);
+}
+
 function createGreetingServer() {
   const server = new McpServer({ name: "chatappdemo", version: "1.0.0" });
 
@@ -62,15 +114,18 @@ function createGreetingServer() {
         };
       }
 
+      const greeting = getRandomGreeting(name);
+
       return {
         content: [
           {
             type: "text",
-            text: `Hello, ${name}! Welcome to the ChatAppDemo. 👋`,
+            text: greeting,
           },
         ],
         structuredContent: {
           name,
+          greeting,
           timestamp: new Date().toISOString(),
         },
       };
