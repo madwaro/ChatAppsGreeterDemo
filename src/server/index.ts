@@ -8,12 +8,41 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors()); // Enable CORS for ChatGPT
+app.use(cors());
 app.use(express.json());
 
 // Schema for greeting
 const GreetingSchema = z.object({
   name: z.string(),
+});
+
+// ChatGPT Apps endpoint - Server-Sent Events
+app.get("/.well-known/ai-plugin.json", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  // Send app manifest as SSE
+  const manifest = {
+    schema_version: "v1",
+    name_for_human: "ChatAppDemo",
+    name_for_model: "chatappdemo",
+    description_for_human: "A simple greeting app that says hello.",
+    description_for_model: "Use this app to greet people by name with a friendly message.",
+    auth: {
+      type: "none",
+    },
+    api: {
+      type: "openapi",
+      url: `${req.get("x-forwarded-proto") || req.protocol}://${req.get("host")}/openapi.json`,
+    },
+    logo_url: `${req.get("x-forwarded-proto") || req.protocol}://${req.get("host")}/logo.png`,
+    contact_email: "support@example.com",
+    legal_info_url: `${req.get("x-forwarded-proto") || req.protocol}://${req.get("host")}/legal`,
+  };
+
+  res.write(`data: ${JSON.stringify(manifest)}\n\n`);
+  res.end();
 });
 
 // POST /greet - Main action endpoint
@@ -34,30 +63,6 @@ app.post("/greet", (req, res) => {
   }
 });
 
-// GET /.well-known/ai-plugin.json - Plugin manifest
-app.get("/.well-known/ai-plugin.json", (req, res) => {
-  const host = req.get("host") || `localhost:${PORT}`;
-  const protocol = req.get("x-forwarded-proto") || req.protocol;
-  
-  res.json({
-    schema_version: "v1",
-    name_for_human: "ChatAppDemo",
-    name_for_model: "chatappdemo",
-    description_for_human: "A simple greeting plugin that says hello.",
-    description_for_model: "Use this plugin to greet people by name with a friendly message.",
-    auth: {
-      type: "none",
-    },
-    api: {
-      type: "openapi",
-      url: `${protocol}://${host}/openapi.json`,
-    },
-    logo_url: `${protocol}://${host}/logo.png`,
-    contact_email: "support@example.com",
-    legal_info_url: `${protocol}://${host}/legal`,
-  });
-});
-
 // GET /openapi.json - OpenAPI specification
 app.get("/openapi.json", (req, res) => {
   const host = req.get("host") || `localhost:${PORT}`;
@@ -71,7 +76,7 @@ app.get("/openapi.json", (req, res) => {
     },
     servers: [
       {
-        url: `${req.protocol}://${host}`,
+        url: `${req.get("x-forwarded-proto") || req.protocol}://${host}`,
       },
     ],
     paths: {
@@ -143,6 +148,6 @@ app.get("/legal", (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`ChatAppDemo HTTP server running on http://localhost:${PORT}`);
-  console.log(`Plugin manifest: http://localhost:${PORT}/.well-known/ai-plugin.json`);
+  console.log(`App manifest: http://localhost:${PORT}/.well-known/ai-plugin.json`);
   console.log(`OpenAPI spec: http://localhost:${PORT}/openapi.json`);
 });
