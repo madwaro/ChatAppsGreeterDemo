@@ -11,7 +11,9 @@
     "appdemo-mcp": "./server/dist/index.js"
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "start": "node dist/server/index.js",
+    "dev": "tsx src/server/index.ts"
   },
   "files": [
     "server/dist"

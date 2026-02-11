@@ -1,10 +1,15 @@
-# ChatAppDemo MCP Server
+# ChatAppDemo - OpenAI ChatGPT Actions Plugin
 
-A minimal Model Context Protocol (MCP) server demonstrating basic tool functionality.
+A minimal HTTP-based ChatGPT Actions plugin demonstrating the basic structure of an OpenAI plugin.
 
 ## What It Does
 
-This server exposes a simple `greet` tool that returns a personalized greeting message.
+This server exposes a simple REST API endpoint:
+- **POST /greet** - Greets a person by name with a friendly message
+
+It includes all the required OpenAI plugin endpoints:
+- `/.well-known/ai-plugin.json` - Plugin manifest
+- `/openapi.json` - OpenAPI specification
 
 ## Installation
 
@@ -15,69 +20,105 @@ npm run build
 
 ## Running the Server
 
-The MCP server communicates over stdio and is designed to be used with MCP clients like Claude Desktop or other MCP-compatible applications.
-
-### Test Locally
-
-You can test the server by running it directly:
-
+### Development
 ```bash
-node dist/server/index.js
+npm run dev
 ```
 
-### Configure with Claude Desktop
+### Production
+```bash
+npm start
+```
 
-Add this to your Claude Desktop MCP configuration:
+The server will run on `http://localhost:3000` by default. Set the `PORT` environment variable to use a different port.
 
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+## Testing the API
 
+### Test the greeting endpoint
+```bash
+curl -X POST http://localhost:3000/greet \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Alice"}'
+```
+
+**Response:**
 ```json
 {
-  "mcpServers": {
-    "chatappdemo": {
-      "command": "node",
-      "args": ["/path/to/ChatAppDemo/dist/server/index.js"]
-    }
-  }
+  "message": "Hello, Alice! Welcome to the ChatAppDemo. 👋",
+  "timestamp": "2024-02-11T00:00:00.000Z"
 }
 ```
 
-Replace `/path/to/ChatAppDemo` with the actual path to this project.
+### View the plugin manifest
+```bash
+curl http://localhost:3000/.well-known/ai-plugin.json
+```
 
-## Available Tools
+### View the OpenAPI specification
+```bash
+curl http://localhost:3000/openapi.json
+```
 
-### greet
+## Using with ChatGPT
 
-Greets a person by name with a friendly hello message.
+To use this plugin with ChatGPT:
 
-**Parameters:**
-- `name` (string, required): The name to greet
+1. Deploy your server to a publicly accessible HTTPS URL
+2. In ChatGPT, go to Plugin Store → Develop your own plugin
+3. Enter your domain (e.g., `https://yourdomain.com`)
+4. ChatGPT will fetch `/.well-known/ai-plugin.json` and register your plugin
 
-**Example:**
+For local development, you can use tools like [ngrok](https://ngrok.com/) to expose your local server:
+
+```bash
+ngrok http 3000
+```
+
+## Project Structure
+
+- **src/server/index.ts** - Main HTTP server with Express
+- **dist/server/index.js** - Compiled JavaScript (after build)
+
+## API Endpoints
+
+### POST /greet
+Greets a person by name.
+
+**Request:**
 ```json
 {
-  "name": "greet",
-  "arguments": {
-    "name": "Alice"
-  }
+  "name": "string"
 }
 ```
 
 **Response:**
-```
-Hello, Alice! Welcome to the ChatAppDemo MCP server. 👋
+```json
+{
+  "message": "string",
+  "timestamp": "ISO 8601 date-time"
+}
 ```
 
-## Development
+### GET /.well-known/ai-plugin.json
+Returns the plugin manifest for ChatGPT.
 
-- **Source code**: `src/server/index.ts`
-- **Build**: `npm run build`
-- **Output**: `dist/server/index.js`
+### GET /openapi.json
+Returns the OpenAPI 3.0 specification for the API.
+
+### GET /health
+Health check endpoint.
+
+**Response:**
+```json
+{
+  "status": "ok"
+}
+```
 
 ## Architecture
 
-This is a standard MCP server that:
-1. Uses stdio transport for communication
-2. Implements tool listing and tool calling handlers
-3. Validates input using Zod schemas
-4. Returns structured responses
+This is a standard HTTP REST API built with:
+- **Express.js** - Web framework
+- **Zod** - Input validation
+- **TypeScript** - Type-safe development
+
