@@ -99,7 +99,7 @@ ngrok http 3000
 2. Add a connector:
    - Go to **Settings → Connectors**
    - Click **Create**
-   - Enter your URL: `https://unflanged-lashaunda-separately.ngrok-free.dev/mcp`
+   - Enter your URL: `https://<your-ngrok-url>.ngrok-free.dev/mcp`
    - Name it "ChatAppDemo" and click **Create**
 
 3. Use in a chat:
