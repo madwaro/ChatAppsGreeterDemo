@@ -87,7 +87,7 @@ For ChatGPT to access your server during development:
 npm start
 
 # Terminal 2: Start ngrok with your domain
-ngrok http 3000 --domain=unflanged-lashaunda-separately.ngrok-free.dev
+ngrok http 3000
 ```
 
 ## Adding to ChatGPT
